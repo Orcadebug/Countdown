@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Countdown to Yuan's Birthday</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/globe.gl@2.24.0/dist/globe.gl.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    body {
+      background: linear-gradient(135deg, #fff1f1 0%, #ffecec 50%, #ffd6d6 100%);
+      font-family: 'Arial', sans-serif;
+      color: #ff6b8b;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .globe-container { width: 100%; height: 400px; position: relative; }
+    .countdown-box {
+      background: rgba(255,255,255,0.8);
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(255,105,140,0.2);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.3);
+    }
+    .countdown-number {
+      font-size: 3rem; font-weight: bold;
+      background: linear-gradient(45deg,#ff6b8b,#ff8e9e);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .city-btn {
+      transition: all .3s ease; border: 2px solid #ffb6c1;
+    }
+    .city-btn:hover, .city-btn.active {
+      background: linear-gradient(45deg,#ff6b8b,#ff8e9e);
+      color: #fff; transform: translateY(-3px);
+      box-shadow: 0 5px 15px rgba(255,105,140,0.3);
+    }
+    .celebration {
+      position: fixed; top:0; left:0; width:100%; height:100%;
+      background: rgba(255,255,255,0.9);
+      display:flex; justify-content:center; align-items:center; flex-direction:column;
+      z-index:1000; opacity:0; pointer-events:none;
+      transition: opacity .5s ease;
+    }
+    .celebration.active { opacity:1; pointer-events:all; }
+    .confetti {
+      position:absolute; width:10px; height:10px;
+      opacity:.7; animation: float linear forwards;
+    }
+    @keyframes float { 0% { transform: translateY(0) rotate(0); } 100% { transform: translateY(-100vh) rotate(360deg); } }
+    .live-indicator { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%{opacity:1}50%{opacity:.5}100%{opacity:1} }
+  </style>
+</head>
+<body class="flex flex-col items-center py-10 px-4">
+  <div class="text-center mb-8">
+    <h1 class="text-4xl md:text-5xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-pink-700">
+      Countdown to Yuan's Birthday
+    </h1>
+    <p class="text-lg text-pink-600">May 30 is coming soon!</p>
+    <div class="flex items-center justify-center mt-2">
+      <span class="bg-pink-500 text-white text-xs px-2 py-1 rounded-full flex items-center">
+        <span class="w-2 h-2 bg-red-500 rounded-full mr-1 live-indicator"></span>LIVE
+      </span>
+    </div>
+  </div>
+
+  <div class="globe-container mb-10 w-full max-w-3xl"><div id="globe"></div></div>
+
+  <div class="countdown-box p-6 md:p-8 w-full max-w-3xl mb-10">
+    <h2 class="text-2xl font-bold text-pink-600 mb-6">Time Remaining</h2>
+    <div class="grid grid-cols-4 gap-4 text-center">
+      <div><div id="days"   class="countdown-number">00</div><div class="text-pink-600">Days</div></div>
+      <div><div id="hours"  class="countdown-number">00</div><div class="text-pink-600">Hours</div></div>
+      <div><div id="minutes"class="countdown-number">00</div><div class="text-pink-600">Minutes</div></div>
+      <div><div id="seconds"class="countdown-number">00</div><div class="text-pink-600">Seconds</div></div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-2 md:grid-cols-3 gap-3 w-full max-w-3xl mb-10">
+    <button class="city-btn active" data-timezone="local"><i class="fas fa-map-marker-alt mr-2"></i>Your Time</button>
+    <button class="city-btn" data-timezone="Asia/Shanghai"><i class="fas fa-city mr-2"></i>Beijing</button>
+    <button class="city-btn" data-timezone="Europe/London"><i class="fas fa-landmark mr-2"></i>London</button>
+    <button class="city-btn" data-timezone="Australia/Sydney"><i class="fas fa-umbrella-beach mr-2"></i>Sydney</button>
+    <button class="city-btn" data-timezone="Asia/Tokyo"><i class="fas fa-torii-gate mr-2"></i>Tokyo</button>
+  </div>
+
+  <div class="relative mb-10">
+    <select id="city-select" class="bg-white border-2 border-pink-300 text-pink-700 rounded-full px-4 py-2 appearance-none focus:outline-none focus:ring-2 focus:ring-pink-400">
+      <option value="Europe/London">London</option>
+      <option value="local" selected>Your Local Time</option>
+      <option value="Asia/Shanghai">Beijing</option>
+      <option value="Australia/Sydney">Sydney</option>
+      <option value="Asia/Tokyo">Tokyo</option>
+    </select>
+    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-pink-500">
+      <i class="fas fa-chevron-down"></i>
+    </div>
+  </div>
+
+  <div class="celebration" id="celebration">
+    <div class="text-center">
+      <h1 class="text-5xl md:text-7xl font-bold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-pink-700">
+        Happy Birthday Yuan!
+      </h1>
+      <p class="text-xl text-pink-600 mb-8">The wait is over! Wishing you an amazing day!</p>
+      <button id="close-celebration" class="bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 px-6 rounded-full transition-all transform hover:scale-105">
+        <i class="fas fa-heart mr-2"></i>Thank You!
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // 3D Globe setup
+    const globeEl = document.getElementById('globe');
+    const myGlobe = Globe()
+      .globeImageUrl('//unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
+      .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
+      .backgroundColor('rgba(255,255,255,0)')
+      .showAtmosphere(true)
+      .atmosphereColor('#ffb6c1')
+      .atmosphereAltitude(0.2)
+      (globeEl);
+
+    myGlobe.controls().autoRotate = false;
+    myGlobe.camera().position.z = 300;
+    myGlobe.pointOfView({ lat: 51.5074, lng: -0.1278, altitude: 2 });
+
+    // City data
+    const cities = [
+      { lat:39.9042,lng:116.4074,size:0.5,color:'#ffb6c1',name:'Beijing',   timezone:'Asia/Shanghai' },
+      { lat:51.5074,lng:-0.1278,size:0.7,color:'#ff6b8b',name:'London',    timezone:'Europe/London' },
+      { lat:-33.8688,lng:151.2093,size:0.5,color:'#ffb6c1',name:'Sydney',    timezone:'Australia/Sydney' },
+      { lat:35.6762,lng:139.6503,size:0.5,color:'#ffb6c1',name:'Tokyo',     timezone:'Asia/Tokyo' }
+    ];
+
+    myGlobe.pointsData(cities)
+      .pointAltitude(0)
+      .pointRadius('size')
+      .pointColor('color')
+      .pointResolution(8)
+      .onPointClick(pt => {
+        selectedTimezone = pt.timezone;
+        updateCitySelection(pt.timezone);
+        updateCountdown();
+        cities.forEach(c => c.size = 0.5);
+        pt.size = 0.7;
+        myGlobe.pointsData([...cities]);
+      });
+
+    let selectedTimezone = 'local';
+
+    // DST-aware target date calc
+    function getTargetDateInTimezone(timezone) {
+      const now = new Date(), yr = now.getFullYear();
+
+      function computeForYear(y) {
+        if (timezone === 'local') return new Date(y,4,30,0,0,0,0);
+        const baseUTC = Date.UTC(y,4,30,0,0,0);
+        const dtf = new Intl.DateTimeFormat('en-US',{
+          timeZone: timezone,
+          hour12: false,
+          year:'numeric',month:'2-digit',day:'2-digit',
+          hour:'2-digit',minute:'2-digit',second:'2-digit',
+          timeZoneName:'short'
+        });
+        const parts = dtf.formatToParts(new Date(baseUTC));
+        const tz = parts.find(p=>p.type==='timeZoneName')?.value||'';
+        const m = /GMT([+-]\d{1,2})(?::?(\d{2}))?/.exec(tz);
+        let off = 0;
+        if (m) {
+          const sign = m[1].startsWith('-')?-1:1;
+          off = sign*(Math.abs(parseInt(m[1],10))*60 + (m[2]?parseInt(m[2],10):0));
+        }
+        return new Date(baseUTC - off*60000);
+      }
+
+      let tgt = computeForYear(yr);
+      if (tgt <= now) tgt = computeForYear(yr+1);
+      return tgt;
+    }
+
+    function updateCountdown() {
+      const now = new Date(), tgt = getTargetDateInTimezone(selectedTimezone), diff = tgt - now;
+      if (diff <= 0) {
+        document.getElementById('celebration').classList.add('active');
+        createConfetti();
+        return;
+      }
+      const d = Math.floor(diff/86400000),
+            h = Math.floor((diff%86400000)/3600000),
+            m = Math.floor((diff%3600000)/60000),
+            s = Math.floor((diff%60000)/1000);
+      document.getElementById('days')   .textContent = String(d).padStart(2,'0');
+      document.getElementById('hours')  .textContent = String(h).padStart(2,'0');
+      document.getElementById('minutes').textContent = String(m).padStart(2,'0');
+      document.getElementById('seconds').textContent = String(s).padStart(2,'0');
+    }
+
+    function updateCitySelection(tz) {
+      document.querySelectorAll('.city-btn').forEach(b=>b.classList.remove('active'));
+      const btn = document.querySelector(`.city-btn[data-timezone="${tz}"]`);
+      if (btn) btn.classList.add('active');
+      document.getElementById('city-select').value = tz;
+      cities.forEach(c=>c.size=0.5);
+      const c = cities.find(c=>c.timezone===tz);
+      if (c) { c.size=0.7; myGlobe.pointsData([...cities]); }
+    }
+
+    document.querySelectorAll('.city-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        selectedTimezone = btn.dataset.timezone;
+        updateCitySelection(selectedTimezone);
+        updateCountdown();
+      });
+    });
+    document.getElementById('city-select').addEventListener('change', function(){
+      selectedTimezone = this.value;
+      updateCitySelection(selectedTimezone);
+      updateCountdown();
+    });
+    document.getElementById('close-celebration').addEventListener('click', ()=>{
+      document.getElementById('celebration').classList.remove('active');
+    });
+
+    function createConfetti() {
+      const ctr = document.getElementById('celebration');
+      for (let i=0;i<100;i++){
+        const c = document.createElement('div');
+        c.className = 'confetti';
+        c.style.left  = Math.random()*100+'vw';
+        c.style.width = Math.random()*10+5+'px';
+        c.style.height= Math.random()*10+5+'px';
+        c.style.backgroundColor = `hsl(${Math.random()*60+330},100%,${Math.random()*30+60}%)`;
+        c.style.animationDuration = `${Math.random()*3+2}s`;
+        ctr.appendChild(c);
+        setTimeout(()=>c.remove(),5000);
+      }
+    }
+
+    // start
+    updateCitySelection(selectedTimezone);
+    setInterval(updateCountdown,1000);
+    updateCountdown();
+  </script>
+</body>
+</html>
